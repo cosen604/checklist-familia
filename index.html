@@ -63,10 +63,28 @@
   </div>
   <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
   <div id="list"></div>
-  <p class="footer">Los cambios se guardan automáticamente</p>
+  <p class="footer" id="status-footer">Conectando...</p>
 </div>
 
+<!-- Firebase SDKs (compat, para poder usarlas con simples <script> tags) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCDFKxFq8evVCtU8ZS2a1IvLXH7Nhpygz0",
+  authDomain: "checklist-familia.firebaseapp.com",
+  databaseURL: "https://checklist-familia-default-rtdb.firebaseio.com",
+  projectId: "checklist-familia",
+  storageBucket: "checklist-familia.firebasestorage.app",
+  messagingSenderId: "981215857645",
+  appId: "1:981215857645:web:26ac8be237e18c6d7375e4"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const stateRef = db.ref('tareas-familia-v1');
+
 const items = [
   "Pedir turno neuróloga",
   "Llevar CUD a PAMI",
@@ -78,20 +96,8 @@ const items = [
   "Contratar Telecom (línea común)",
   "Dar de baja Telecentro"
 ];
-const KEY = "tareas-familia-v1";
+
 let state = {};
-
-async function load() {
-  try {
-    const res = await window.storage.get(KEY, true);
-    state = res ? JSON.parse(res.value) : {};
-  } catch (e) { state = {}; }
-  render();
-}
-
-async function save() {
-  try { await window.storage.set(KEY, JSON.stringify(state), true); } catch(e) {}
-}
 
 function render() {
   const list = document.getElementById('list');
@@ -116,12 +122,20 @@ function render() {
 }
 
 function toggle(i) {
-  state[i] = !state[i];
-  render();
-  save();
+  const newVal = !state[i];
+  stateRef.child(i).set(newVal); // escribe directo a Firebase; el listener de abajo actualiza la UI para todos
 }
 
-load();
+// Escucha cambios en tiempo real (propios y de cualquier otra persona que tenga el link abierto)
+stateRef.on('value', (snapshot) => {
+  state = snapshot.val() || {};
+  document.getElementById('status-footer').textContent = 'Los cambios se guardan automáticamente';
+  render();
+});
+
+stateRef.on('error', (err) => {
+  document.getElementById('status-footer').textContent = 'Error de conexión: ' + err.message;
+});
 </script>
 </body>
 </html>
